@@ -1,0 +1,32 @@
+
+spring:
+  application:
+    # 应用名称
+    name: client1
+  profiles:
+    active: test
+  cloud:
+    nacos:
+      discovery:
+        #账号密码
+        username: nacos
+        password: nacos
+        # 服务注册地址
+        server-addr: 127.0.0.1:8848
+        # 配置所属命名空间的id
+        namespace: f084d662-5dd6-4dbe-9daa-e4bdd0b98018
+      config:
+        #账号密码
+        username: nacos
+        password: nacos
+        # 配置中心地址
+        server-addr: 127.0.0.1:8848
+        # 配置所属命名空间的id
+        namespace: f084d662-5dd6-4dbe-9daa-e4bdd0b98018
+        # 配置文件格式
+        file-extension: yml
+        enabled: true
+        group: DEFAULT_GROUP
+        prefix: service1
+server:
+  port: 8089
