@@ -1,7 +1,15 @@
 # demo描述
 
-- 读取shp/cad文件，数据写入空间库的图层，对图层的属性做叠加的分析。
+## V1
+- 读取shp/cad文件，数据写入空间库的图层，对图层的属性做叠加分析。
 - 叠加分析结果可以用excel下载。
+
+## V2
+- 写接口上传两个图层，创建新的图层。
+- 结果导出excel（可以用poitl）
+- 要导出图层要素的wkt信息并在excel
+- 自己创建图层，写入相交文件
+- 用postGIS 中的st函数进行叠加分析
 
 # 思路
 ## 基本步骤
@@ -14,12 +22,88 @@
 - 将shapfile中读取数据导入到postgis中
 - 对图层属性进行叠加分析
 	- 叠加分析
+		- 1. 遍历第一个 `List<SimpleFeature>` 中的每个要素。
+		- 1. 对于每个要素，在第二个 `List<SimpleFeature>` 中查找与之相交的要素。
+		- 1. 如果找到相交的要素，计算它们的相交部分的面积。
+		- 2. 将每对相交要素的相交部分的面积累加起来。
+		- 3. 最后，计算相交面积总和与两个列表中所有要素的总面积之比，即为相交的比例。
 - 将分析结果写入excel中
+- 将分析结果写入postGIS中
 
-# 待学习
+## 分析过程
+
+
+# 新学
 
 - 更多GIS的相关基础知识。
 - GeoTools的基本使用
+
+## 叠加分析
+
+[参考链接](https://desktop.arcgis.com/zh-cn/arcmap/latest/analyze/commonly-used-tools/overlay-analysis.htm#GUID-BF7FF5E5-302F-4DC4-9108-7C91795B5427)
+![](other/Pasted%20image%2020240417154638.png)
+
+## geotools 使用
+
+### 连接数据库
+```java
+Map<String, Object> params = new HashMap<String, Object>();
+params.put(PostgisNGDataStoreFactory.DBTYPE.key, dbtype);
+params.put(PostgisNGDataStoreFactory.HOST.key, host);
+params.put(PostgisNGDataStoreFactory.PORT.key, new Integer(port));
+params.put(PostgisNGDataStoreFactory.DATABASE.key, database);
+params.put(PostgisNGDataStoreFactory.SCHEMA.key, "public");
+params.put(PostgisNGDataStoreFactory.USER.key, userName);
+params.put(PostgisNGDataStoreFactory.PASSWD.key, password);
+try {
+	pgDatastore = DataStoreFinder.getDataStore(params);
+	if (pgDatastore != null) {
+		System.out.println("系统连接到位于：" + host + "的空间数据库" + database
+				+ "成功！");
+	} else {
+		System.out.println("系统连接到位于：" + host + "的空间数据库" + database
+				+ "失败！请检查相关参数");
+	}
+} catch (IOException e) {
+	e.printStackTrace();
+	System.out.println("系统连接到位于：" + host + "的空间数据库" + database
+			+ "失败！请检查相关参数");
+```
+
+### 图层操作
+#### 查询
+**根据图层名称获取要素集**:
+``` java
+SimpleFeatureSource featureSource =pgDatastore.getFeatureSource(layerName)
+```
+**获取要素集合**：
+```
+SimpleFeatureCollection result = featureSource.getFeatures(filter);
+```
+**遍历要素几集合**：
+
+根据要素集合获取要素迭代器，遍历填充到要素list中
+``` java
+ArrayList<SimpleFeature> featureList = new ArrayList<SimpleFeature>();FeatureIterator<SimpleFeature> itertor = result.features();
+	while (itertor.hasNext()) {
+		SimpleFeature feature = itertor.next();
+		featureList.add(feature);
+	}
+	itertor.close();
+```
+
+**获取feature中的属性：**
+
+获取feature中的属性
+```java
+feature.getAttribute(arg0);
+```
+
+### shp文件->postGIS数据库
+
+**步骤**：
+
+文件读取->
 
 ## 叠加分析
 
@@ -29,6 +113,33 @@
 
 **数据结构+算法**
 ![](other/Pasted%20image%2020240415115325.png)
+
+# 相关概念
+
+[要素类](https://desktop.arcgis.com/zh-cn/arcmap/latest/manage-data/geodatabases/feature-class-basics.htm)
+
+由于知识点实在是太多了，只记录比较热点的。
+
+## 基础的三个要素类的类型
+
+通常，要素类是点、线或面的专题集合（但存在七种要素类类型，只有地利数据库存在其他四种类型）
+- **点**：表示过小而无法表示为线或面以及点位置（如 GPS 观测值）的要素。
+- **线**：表示形状和位置过窄而无法表示为区域的地理对象（如，街道中心线与河流）。也使用线来表示具有长度但没有面积的要素，如等值线和边界。
+- **面**一组具有多个边的面要素，表示同类要素类型（如州、县、宗地、土壤类型和土地使用区域）的形状和位置。
+
+## 要素几何
+
+图层可能有很多要素，要素可能有很多几何。
+
+要素类包含各要素的几何形状和描述性属性。
+
+各要素几何主要由各自的要素类型（点、线或面）定义。
+
+线要素类和面要素类可由单部分或多部分构成。
+
+![](other/Pasted%20image%2020240416112342.png)
+
+
 # 遇到的问题
 
 ## 无法通过maven导入GeoTool的配置。
@@ -56,7 +167,7 @@
 
 但还是没有用。
 
-此处有两个问题：
+此处有存在两个问题：
 
 **问题一**
 
@@ -217,3 +328,86 @@
 
         </profile>
 ```
+
+## 类型引用错误
+
+在写demo的时候，遇到类型引用的错误，但是我明明正确引用了。
+
+Geometry有两个引用方式：
+``` java
+import org.locationtech.jts.geom.Geometry;
+import org.opengis.geometry.Geometry;
+```
+
+要注意鉴别
+
+## 中文乱码问题
+
+在读取文件的时候要设置中文编码格式：
+`store.setCharset(StandardCharsets.UTF_8);  `
+
+``` java
+public static SimpleFeatureCollection getFeatureCollectionFromShp(String shpPath) {  
+    File shpFile = getShpFileFromPath(shpPath);  
+    try {  
+        ShapefileDataStore store = (ShapefileDataStore) FileDataStoreFinder.getDataStore(shpFile);  
+        // 设置UTF-8，不然会中文乱码  
+        store.setCharset(StandardCharsets.UTF_8);  
+        return store.getFeatureSource().getFeatures();  
+    } catch (IOException e) {  
+        throw new RuntimeException(e.getMessage(), e);  
+    }  
+}
+```
+
+## excel空指针异常问题
+
+我使用官网的示例：
+
+## GeoTools不能直接读取CAD文件问题
+
+**解决方案**：
+
+解析dxf用开源的GDAL，调用GDAL驱动把dxf转成shp文件，然后再用开源的GeoTools去解析shp文件。
+
+## 调用GDAL失败
+
+报错如下：
+```
+Native library load failed.
+java.lang.UnsatisfiedLinkError: no gdalalljni in java.library.path
+```
+
+当时是使用maven直接导入了依赖，但是没有用：
+```xml
+<!--GDAL-->  
+<dependency>  
+    <groupId>org.gdal</groupId>  
+    <artifactId>gdal</artifactId>  
+    <version>3.8.0</version>  
+</dependency>
+```
+
+解决方式：
+[参考链接](https://blog.csdn.net/qq_42316200/article/details/103243960)
+
+## 遇到Swagger引入失败问题
+
+[参考链接](https://stackoverflow.com/questions/40241843/failed-to-start-bean-documentationpluginsbootstrapper-in-spring-data-rest)
+
+```log
+org.springframework.context.ApplicationContextException: Failed to start bean 'documentationPluginsBootstrapper'; nested exception is java.lang.NullPointerException
+```
+
+此问题是由于Spring MVC`Spring Fox 3.0.0`不支持新的基于 PathPattern 的路径匹配策略引起的.
+
+springboot 2.6.0及以上版本与Spring fox版本不匹配
+
+加上yml配置就可以解决：
+```yml
+spring:  
+  mvc:  
+    pathmatch:  
+      matching-strategy: ant_path_matcher
+```
+
