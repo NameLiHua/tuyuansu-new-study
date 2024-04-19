@@ -4,12 +4,25 @@
 - 读取shp/cad文件，数据写入空间库的图层，对图层的属性做叠加分析。
 - 叠加分析结果可以用excel下载。
 
-## V2
+## V2（）
 - 写接口上传两个图层，创建新的图层。
 - 结果导出excel（可以用poitl）
 - 要导出图层要素的wkt信息并在excel
 - 自己创建图层，写入相交文件
 - 用postGIS 中的st函数进行叠加分析
+
+## V3（上午10点）
+- 意见：
+	- 1：把当前的接口拆分成至少三个接口 
+	- 2：不要临时文件夹
+	- 3：重整sql语句，sql语句存在错误（要相交的结果，而不是单个的）
+	- 4：按照V2的要求去重新实现（导出一个excel，wkt文件要写入excel里面）
+	- 5：使用swagger调试
+- 拆分成模块
+
+## V4
+- 一定要用临时文件吗？可以直接返回流吗
+- 单个表格如何写入大量的数据
 
 # 思路
 ## 基本步骤
@@ -113,6 +126,10 @@ feature.getAttribute(arg0);
 
 **数据结构+算法**
 ![](other/Pasted%20image%2020240415115325.png)
+
+## PostGIS中ST函数
+[官网参考1](https://postgis.net/docs/reference.html)
+[官网参考2](https://postgis.net/docs/ST_AsGeoJSON.html)
 
 # 相关概念
 
@@ -411,3 +428,10 @@ spring:
       matching-strategy: ant_path_matcher
 ```
 
+## 静态字段不支持注入问题
+```
+Description: Parameter 0 of constructor in com.example.demogis.service.PostgisService required a bean of type 'org.geotools.data.DataStore' that could not be found. The following candidates were found but could not be injected: - User-defined bean method 'connectDatabase' in 'PgConfig' ignored as the bean value is null Action: Consider revisiting the entries above or defining a bean of type 'org.geotools.data.DataStore' in your configuration. 与目标 VM 断开连接, 地址为: ''127.0.0.1:8809'，传输: '套接字''
+```
+这段代码看起来是用于在Spring Boot应用程序中配置一个PostGIS数据源的Java配置类。不过，这里有几个问题可能导致你遇到无法注入`DataStore`类型的bean的错误。
+
+首先，`@Value`注解用于注入配置属性到Spring管理的bean的实例字段中，但是这里你尝试将它们注入到静态字段中，这是不被支持的。静态字段不属于任何Spring管理的bean实例，因此Spring无法注入值到这些字段中。
